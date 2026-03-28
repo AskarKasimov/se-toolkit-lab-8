@@ -42,6 +42,36 @@ User: "Show me the pass rates"
 → Call lms_pass_rates with the chosen lab
 ```
 
+### Cooperating with structured-ui
+
+When you need user input for a choice (like selecting a lab):
+
+1. **Delegate to structured-ui**: Call the `structured_ui_choice` tool with:
+   - `options`: Array of `{label: "Lab Title", value: "lab-id"}`
+   - `question`: Clear question like "Which lab would you like to see?"
+   - `multiple`: `false` for single selection
+
+2. **Wait for the response**: The channel will render the appropriate UI (buttons, dropdown, etc.)
+
+3. **Use the returned value**: The `value` field contains the lab ID to pass to LMS tools
+
+This pattern ensures:
+- Consistent UI across webchat, Flutter, and other channels
+- Proper structured payloads instead of parsing text responses
+- Better UX with clickable options instead of "type the number"
+
+### When to use structured-ui
+
+Use structured-ui for:
+- Lab selection (from `lms_labs`)
+- Learner selection (from `lms_learners`)
+- Any multi-option choice where the user should pick one
+
+Do NOT use structured-ui for:
+- Yes/no questions (use channel-native confirmations)
+- Free-text input
+- When there's only one option (just proceed)
+
 ### Formatting numeric results
 
 - **Percentages**: Format as `XX%` (e.g., `0.85` → `85%`)

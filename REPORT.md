@@ -226,11 +226,60 @@ Please let me know which lab you'd like to see, or if you'd like to see scores f
 
 ## Task 2A — Deployed agent
 
-<!-- Paste a short nanobot startup log excerpt showing the gateway started inside Docker -->
+nanobot-1  | Using config: /tmp/config.resolved.json
+nanobot-1  | 🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+nanobot-1  | 2026-03-28 12:49:11.911 | DEBUG    | nanobot.channels.registry:discover_all:64 - Skipping built-in channel 'matrix': Matrix dependencies not installed. Run: pip install nanobot-ai[matrix]
+nanobot-1  | Warning: No channels enabled
+nanobot-1  | ✓ Heartbeat: every 1800s
+nanobot-1  | 
+nanobot-1  | Error: Gateway crashed unexpectedly
+nanobot-1  | Traceback (most recent call last):
+nanobot-1  |   File "/app/.venv/lib/python3.14/site-packages/nanobot/cli/commands.py", line 
+nanobot-1  | 679, in run
+nanobot-1  |     await cron.start()
+nanobot-1  |   File "/app/.venv/lib/python3.14/site-packages/nanobot/cron/service.py", line 
+nanobot-1  | 200, in start
+nanobot-1  |     self._save_store()
+nanobot-1  |     ~~~~~~~~~~~~~~~~^^
+nanobot-1  |   File "/app/.venv/lib/python3.14/site-packages/nanobot/cron/service.py", line 
+nanobot-1  | 146, in _save_store
+nanobot-1  |     self.store_path.parent.mkdir(parents=True, exist_ok=True)
+nanobot-1  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+nanobot-1  |   File "/usr/local/lib/python3.14/pathlib/__init__.py", line 1011, in mkdir
+nanobot-1  |     os.mkdir(self, mode)
+nanobot-1  |     ~~~~~~~~^^^^^^^^^^^^
+nanobot-1  | PermissionError: [Errno 13] Permission denied: '/app/nanobot/workspace/cron'
+nanobot-1  | 
+nanobot-1  | 2026-03-28 12:49:12.441 | INFO     | nanobot.agent.loop:stop:387 - Agent loop stopping
+nanobot-1  | 2026-03-28 12:49:12.441 | INFO     | nanobot.channels.manager:stop_all:99 - Stopping all channels...
+nanobot-1  | Loading config from: /app/nanobot/config.json
+nanobot-1  | Writing resolved config to: /tmp/config.resolved.json
+nanobot-1  | Resolved LLM API base: http://qwen-code-api:8080/v1
+nanobot-1  | Resolved model: coder-model
+nanobot-1  | Resolved gateway: 0.0.0.0:18790
+nanobot-1  | Using config: /tmp/config.resolved.json
+nanobot-1  | 🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+nanobot-1  | 2026-03-28 12:50:06.595 | DEBUG    | nanobot.channels.registry:discover_all:64 - Skipping built-in channel 'matrix': Matrix dependencies not installed. Run: pip install nanobot-ai[matrix]
+nanobot-1  | Warning: No channels enabled
+nanobot-1  | ✓ Heartbeat: every 1800s
+nanobot-1  | 2026-03-28 12:50:07.071 | INFO     | nanobot.cron.service:start:202 - Cron service started with 0 jobs
+nanobot-1  | 2026-03-28 12:50:07.071 | INFO     | nanobot.heartbeat.service:start:124 - Heartbeat started (every 1800s)
+nanobot-1  | 2026-03-28 12:50:07.706 | WARNING  | nanobot.channels.manager:start_all:82 - No channels enabled
+nanobot-1  | 2026-03-28 12:50:09.917 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_health' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.918 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_labs' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.918 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_learners' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.918 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_pass_rates' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.918 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_timeline' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.919 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_groups' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.919 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_top_learners' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.919 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_completion_rate' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.919 | DEBUG    | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_lms_lms_sync_pipeline' from server 'lms'
+nanobot-1  | 2026-03-28 12:50:09.919 | INFO     | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'lms': connected, 9 tools registered
+nanobot-1  | 2026-03-28 12:50:09.920 | INFO     | nanobot.agent.loop:run:280 - Agent loop started
 
 ## Task 2B — Web client
 
-<!-- Screenshot of a conversation with the agent in the Flutter web app -->
+![screenshot](screenshot.png)
 
 ## Task 3A — Structured logging
 
