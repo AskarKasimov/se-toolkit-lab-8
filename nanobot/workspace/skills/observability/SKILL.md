@@ -19,7 +19,20 @@ Use observability MCP tools to investigate errors, logs, and traces from the LMS
 
 ## Strategy
 
-### When the user asks about errors or problems
+### When the user asks "What went wrong?" or "Check system health"
+
+Perform a **full one-shot investigation** automatically — do not ask the user for permission between steps:
+
+1. **Start with `obs_logs_error_count`** — get a quick count of recent errors scoped to the LMS backend and a narrow recent window (prefer `_time:10m`).
+2. **If errors > 0, use `obs_logs_search`** — dig into the actual error log entries. Use `_time:10m service.name:"Learning Management Service" severity:ERROR`. Look for `trace_id` fields in error records.
+3. **Always fetch the matching trace** — if you find a `trace_id` in the logs, immediately call `obs_traces_get` with that trace ID. Do not ask the user whether to do this.
+4. **Summarize findings concisely in one coherent report** — don't dump raw JSON. Present:
+   - What failed (service name, operation)
+   - Log evidence (timestamp, event, error message)
+   - Trace evidence (trace ID, which span failed, error tags)
+   - Root cause hypothesis
+
+### When the user asks about errors or problems (general)
 
 1. **Start with `obs_logs_error_count`** — get a quick count of recent errors scoped to the service and time window the user cares about.
 2. **If errors exist, use `obs_logs_search`** — dig into the actual log entries to understand what happened. Look for `trace_id` fields in error records.
