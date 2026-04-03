@@ -381,68 +381,77 @@ Error trace showing `SELECT db-lab-8` with `error: true` tag:
 2026-04-03 09:16:21 | INFO | MCP server 'obs': connected, 4 tools registered
 ```
 
-### Tool verification via direct API calls
+### Agent Response 1 — Normal conditions (PostgreSQL running)
 
-**obs_logs_search** — queried VictoriaLogs for recent logs:
+**Question:** "Any errors in the last hour? Check the logs."
 
+**Agent reasoning and tool calls:**
 ```
-Query: _time:1h, limit=5
-Result: 5 log entries returned including request_started, auth_success, db_query, request_completed
-```
-
-**obs_logs_error_count** — queried for errors after stopping postgres:
-
-```
-Query: _time:5m severity:ERROR
-Result: 1 error found — db_query with "connection is closed" on trace_id=a2c779cb61e8445a79204cd32ce16432
-Error detail: (sqlalchemy.dialects.postgresql.asyncpg.InterfaceError) connection is closed
-              [SQL: SELECT item.id, item.type, item.parent_id, item.title, ... FROM item]
+[TOOL: mcp_obs_obs_logs_error_count] args: {"time_range": "1h"}
+[TOOL_RESULT] "Found 0 error(s) across all services in the last 1h."
 ```
 
-**obs_traces_list** — listed traces for "Learning Management Service":
+**Agent response:**
+> Good news — no errors found across all services in the last hour. Everything looks clean! 🟢
 
+*(Session: `webchat_8ea18bc3-8d52-4af3-afcd-2da308c4bb4c.jsonl`)*
+
+---
+
+### Agent Response 2 — Error conditions (PostgreSQL stopped)
+
+**Setup:** `docker compose stop postgres` → triggered error request → asked same question.
+
+**Agent reasoning and tool calls:**
 ```
-Service: Learning Management Service, limit=3
-Result: Multiple traces returned including healthy trace 74f41c0bdd51a7c98455b05b1ff6b4ff (10 spans, 904ms)
+[TOOL: mcp_obs_obs_logs_error_count] args: {"time_range": "1h"}
+[TOOL_RESULT] "Found 1 error(s) across all services in the last 1h."
+
+[TOOL: mcp_obs_obs_logs_search] args: {"query": "_time:1h severity:ERROR", "limit": 10}
+[TOOL_RESULT] 1 log entry: db_query with "connection is closed" from Learning Management Service
+
+Final agent response:
 ```
 
-**obs_traces_get** — fetched error trace by ID:
+**Agent response:**
+> Found **1 error** in the last hour:
+>
+> | Field | Value |
+> |-------|-------|
+> | **Time** | 2026-04-03 09:30:28 UTC (~8 min ago) |
+> | **Service** | Learning Management Service |
+> | **Event** | `db_query` (SELECT on `item` table) |
+> | **Error** | `asyncpg.exceptions.InterfaceError: connection is closed` |
+>
+> **What happened:** A database query failed because the PostgreSQL connection was already closed. This is likely a transient connection pool issue — the LMS tried to run a `SELECT` on the `item` table but the underlying asyncpg connection had been dropped.
+>
+> Want me to fetch the full trace (`a2c779cb61e8445a79204cd32ce16432`) to see the broader request context, or check if the LMS is currently healthy?
 
-```
-Trace ID: a2c779cb61e8445a79204cd32ce16432
-Result: 6 spans, SELECT db-lab-8 marked with error: true, total duration 17ms
-```
+*(Session: `webchat_684b9552-80bf-4a7b-9b8b-5ebd16e97069.jsonl`)*
+
+### Agent reasoning flow
+
+The agent followed the exact pattern taught by the observability skill:
+1. Started with `obs_logs_error_count` for a quick error check
+2. Found 1 error, used `obs_logs_search` to inspect details
+3. Summarized findings concisely with structured table (not raw JSON)
+4. Offered to fetch the full trace using the extracted `trace_id`
 
 ### Observability Skill
 
 Created `nanobot/workspace/skills/observability/SKILL.md` teaching the agent:
 1. Start with `obs_logs_error_count` for quick error check
-2. Use `obs_logs_search` with LogsQL to dig into errors (e.g., `_time:10m service.name:"Learning Management Service" severity:ERROR`)
-3. Extract `trace_id` from log entries and use `obs_traces_get` for full trace inspection
+2. Use `obs_logs_search` with LogsQL to dig into errors
+3. Extract `trace_id` from log entries and use `obs_traces_get` for full trace
 4. Summarize findings concisely — no raw JSON dumps
 
 ### Files Created:
 - `mcp/mcp-obs/pyproject.toml` — Package definition
-- `mcp/mcp-obs/src/mcp_obs/settings.py` — Environment config (NANOBOT_VICTORIALOGS_URL, NANOBOT_VICTORIATRACES_URL)
+- `mcp/mcp-obs/src/mcp_obs/settings.py` — Environment config
 - `mcp/mcp-obs/src/mcp_obs/observability.py` — VictoriaLogs + VictoriaTraces HTTP clients
 - `mcp/mcp-obs/src/mcp_obs/tools.py` — 4 tool definitions with handlers
 - `mcp/mcp-obs/src/mcp_obs/server.py` — MCP stdio server
 - `nanobot/workspace/skills/observability/SKILL.md` — Skill prompt
-
-### Manual Testing
-
-To test via webchat:
-1. **Normal conditions**: Ask "Any LMS backend errors in the last 10 minutes?" → agent should report 0 errors
-2. **Failure conditions**:
-   ```bash
-   docker compose --env-file .env.docker.secret stop postgres
-   # Make a request through the Flutter app
-   # Ask: "Any LMS backend errors in the last 10 minutes?"
-   # Agent should report the db_query "connection is closed" error
-   docker compose --env-file .env.docker.secret start postgres
-   ```
-
-Note: LLM responses cannot be captured at this time because the qwen-code-api token has expired (health check shows `"status":"expired"`). The MCP tools are deployed and functional — verified via direct API calls above.
 
 ## Task 4A — Multi-step investigation
 
