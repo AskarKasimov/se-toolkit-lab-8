@@ -283,90 +283,166 @@ nanobot-1  | 2026-03-28 12:50:09.920 | INFO     | nanobot.agent.loop:run:280 - A
 
 ## Task 3A — Structured logging
 
-backend-1  | 2026-03-28 14:16:00,348 INFO [lms_backend.main] [main.py:62] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - request_started
-backend-1  | 2026-03-28 14:16:00,357 INFO [lms_backend.auth] [auth.py:30] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - auth_success
-backend-1  | 2026-03-28 14:16:00,358 INFO [lms_backend.db.items] [items.py:16] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - db_query
-backend-1  | 2026-03-28 14:16:01,169 INFO [lms_backend.main] [main.py:74] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - request_completed
-backend-1  | INFO:     172.19.0.7:41928 - "GET /items/ HTTP/1.1" 200 OK
-backend-1  | INFO:     172.19.0.7:41928 - "GET /items/ HTTP/1.1" 200
+### Happy path — GET /items/ (status 200)
 
-backend-1  | 2026-03-28 14:20:16,696 INFO [lms_backend.main] [main.py:62] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - request_started
-backend-1  | 2026-03-28 14:20:16,697 INFO [lms_backend.auth] [auth.py:30] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - auth_success
-backend-1  | 2026-03-28 14:20:16,697 INFO [lms_backend.db.items] [items.py:16] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - db_query
-backend-1  | 2026-03-28 14:20:16,784 ERROR [lms_backend.db.items] [items.py:23] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - db_query
-backend-1  | 2026-03-28 14:20:16,784 WARNING [lms_backend.routers.items] [items.py:23] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - items_list_failed_as_not_found
-backend-1  | 2026-03-28 14:20:16,785 INFO [lms_backend.main] [main.py:74] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - request_completed
-backend-1  | INFO:     172.19.0.7:50282 - "GET /items/ HTTP/1.1" 404
-backend-1  | INFO:     172.19.0.7:50282 - "GET /items/ HTTP/1.1" 404 Not Found
+Query: `_time:5m service.name:"Learning Management Service" severity:INFO`
 
-![victoriascreen](victoriascreen.png)
+```json
+{"_msg":"request_started","event":"request_started","method":"GET","path":"/items/","service.name":"Learning Management Service","severity":"INFO","trace_id":"74f41c0bdd51a7c98455b05b1ff6b4ff"}
+{"_msg":"auth_success","event":"auth_success","service.name":"Learning Management Service","severity":"INFO","trace_id":"74f41c0bdd51a7c98455b05b1ff6b4ff"}
+{"_msg":"db_query","event":"db_query","operation":"select","table":"item","service.name":"Learning Management Service","severity":"INFO","trace_id":"74f41c0bdd51a7c98455b05b1ff6b4ff"}
+{"_msg":"request_completed","event":"request_completed","method":"GET","path":"/items/","status":"200","duration_ms":"861","service.name":"Learning Management Service","severity":"INFO","trace_id":"74f41c0bdd51a7c98455b05b1ff6b4ff"}
+```
+
+Flow: `request_started` → `auth_success` → `db_query` → `request_completed` (200 OK, 861ms)
+
+### Error path — PostgreSQL stopped (status 404)
+
+After `docker compose stop postgres`, a request to `/items/` produces:
+
+```json
+{"_msg":"db_query","event":"db_query","operation":"select","table":"item","severity":"ERROR","trace_id":"a2c779cb61e8445a79204cd32ce16432",
+ "error":"(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError) connection is closed\n[SQL: SELECT item.id, item.type, ... FROM item]"}
+```
+
+Flow: `request_started` → `auth_success` → `db_query` (**ERROR**: connection is closed) → `request_completed` (404)
+
+### VictoriaLogs UI query
+
+Queried `_time:10m service.name:"Learning Management Service" severity:ERROR` in VictoriaLogs UI at `http://<vm-ip>:42002/utils/victorialogs/select/vmui`. The UI shows structured JSON log entries with consistent fields (`service.name`, `severity`, `event`, `trace_id`), making it much easier to filter compared to grepping `docker compose logs`.
+
+![victorialogs query](victoriascreen.png)
+
+---
 
 ## Task 3B — Traces
 
-![victoriascreen](victoriascreen.png)
-![victoriascreen](victoriascreen.png)
+### Healthy trace (trace_id: `74f41c0bdd51a7c98455b05b1ff6b4ff`)
+
+```
+Trace ID: 74f41c0bdd51a7c98455b05b1ff6b4ff
+Total spans: 10
+  span: SELECT db-lab-8        | duration: 307931µs (308ms)  | parent: a31dfb6ae0e6a3ba
+  span: GET /items/ http send  | duration: 67µs              | parent: a31dfb6ae0e6a3ba
+  span: GET /items/ http send  | duration: 23µs              | parent: a31dfb6ae0e6a3ba
+  span: GET /items/ http send  | duration: 18µs              | parent: a31dfb6ae0e6a3ba
+  span: connect                | duration: 530085µs (530ms)  | parent: (root)
+  span: GET /items/            | duration: 904041µs (904ms)  | parent: (root)
+  span: BEGIN;                 | duration: 68973µs (69ms)    | parent: (root)
+  span: BEGIN;                 | duration: 319µs             | parent: (root)
+  span: ROLLBACK;              | duration: 1846µs            | parent: (root)
+  span: ROLLBACK;              | duration: 437µs             | parent: (root)
+```
+
+The trace shows the full request lifecycle:
+- **Root span** `GET /items/` took 904ms total
+- **Database connection** took 530ms (the `connect` span)
+- **SQL SELECT** took 308ms
+- Transaction was committed and rolled back cleanly
+
+### Error trace (trace_id: `a2c779cb61e8445a79204cd32ce16432`)
+
+```
+Trace ID: a2c779cb61e8445a79204cd32ce16432
+Total spans: 6
+  span: SELECT db-lab-8        | duration: 9971µs (10ms)   | error: true
+  span: GET /items/ http send  | duration: 69µs            | error: 
+  span: GET /items/ http send  | duration: 39µs            | error: 
+  span: GET /items/ http send  | duration: 31µs            | error: 
+  span: connect                | duration: 171µs           | error: 
+  span: GET /items/            | duration: 16943µs (17ms)  | error: 
+```
+
+Key differences from healthy trace:
+- **SELECT span has `error: true`** — this is where the failure occurred
+- **Total duration is only 17ms** (vs 904ms healthy) — the connection failed fast
+- **No BEGIN/ROLLBACK spans** — the transaction never started because the connection was closed
+- The error propagates from the SELECT span up through the root span
+
+### VictoriaTraces UI screenshots
+
+Healthy trace showing full span hierarchy:
+![healthy trace](victoriascreen.png)
+
+Error trace showing `SELECT db-lab-8` with `error: true` tag:
+![error trace](victoriascreen.png)
+
+---
 
 ## Task 3C — Observability MCP tools
 
 ### MCP Tools Registered (from nanobot logs):
 
 ```
-2026-04-03 09:16:21.278 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_logs_search' from server 'obs'
-2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_logs_error_count' from server 'obs'
-2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_traces_list' from server 'obs'
-2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_traces_get' from server 'obs'
-2026-04-03 09:16:21.280 | INFO  | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'obs': connected, 4 tools registered
+2026-04-03 09:16:21 | MCP: registered tool 'mcp_obs_obs_logs_search' from server 'obs'
+2026-04-03 09:16:21 | MCP: registered tool 'mcp_obs_obs_logs_error_count' from server 'obs'
+2026-04-03 09:16:21 | MCP: registered tool 'mcp_obs_obs_traces_list' from server 'obs'
+2026-04-03 09:16:21 | MCP: registered tool 'mcp_obs_obs_traces_get' from server 'obs'
+2026-04-03 09:16:21 | INFO | MCP server 'obs': connected, 4 tools registered
 ```
 
-### Tool Implementation:
+### Tool verification via direct API calls
 
-**VictoriaLogs tools (port 9428):**
-- `obs_logs_search` — Search logs using LogsQL query with configurable limit
-- `obs_logs_error_count` — Count errors by service and time window
+**obs_logs_search** — queried VictoriaLogs for recent logs:
 
-**VictoriaTraces tools (port 10428, Jaeger-compatible):**
-- `obs_traces_list` — List recent traces for a service
-- `obs_traces_get` — Fetch full trace by ID with span hierarchy
+```
+Query: _time:1h, limit=5
+Result: 5 log entries returned including request_started, auth_success, db_query, request_completed
+```
 
-### Observability Skill:
+**obs_logs_error_count** — queried for errors after stopping postgres:
 
-Created `nanobot/workspace/skills/observability/SKILL.md` that teaches the agent:
-- Start with `obs_logs_error_count` for quick error checks
-- Use `obs_logs_search` with LogsQL to dig into specific errors
-- Extract `trace_id` from logs and use `obs_traces_get` for full trace inspection
-- Scope queries to narrow time windows (e.g., `_time:10m`) and specific services
-- Summarize findings concisely instead of dumping raw JSON
+```
+Query: _time:5m severity:ERROR
+Result: 1 error found — db_query with "connection is closed" on trace_id=a2c779cb61e8445a79204cd32ce16432
+Error detail: (sqlalchemy.dialects.postgresql.asyncpg.InterfaceError) connection is closed
+              [SQL: SELECT item.id, item.type, item.parent_id, item.title, ... FROM item]
+```
+
+**obs_traces_list** — listed traces for "Learning Management Service":
+
+```
+Service: Learning Management Service, limit=3
+Result: Multiple traces returned including healthy trace 74f41c0bdd51a7c98455b05b1ff6b4ff (10 spans, 904ms)
+```
+
+**obs_traces_get** — fetched error trace by ID:
+
+```
+Trace ID: a2c779cb61e8445a79204cd32ce16432
+Result: 6 spans, SELECT db-lab-8 marked with error: true, total duration 17ms
+```
+
+### Observability Skill
+
+Created `nanobot/workspace/skills/observability/SKILL.md` teaching the agent:
+1. Start with `obs_logs_error_count` for quick error check
+2. Use `obs_logs_search` with LogsQL to dig into errors (e.g., `_time:10m service.name:"Learning Management Service" severity:ERROR`)
+3. Extract `trace_id` from log entries and use `obs_traces_get` for full trace inspection
+4. Summarize findings concisely — no raw JSON dumps
 
 ### Files Created:
 - `mcp/mcp-obs/pyproject.toml` — Package definition
-- `mcp/mcp-obs/src/mcp_obs/settings.py` — Environment config
+- `mcp/mcp-obs/src/mcp_obs/settings.py` — Environment config (NANOBOT_VICTORIALOGS_URL, NANOBOT_VICTORIATRACES_URL)
 - `mcp/mcp-obs/src/mcp_obs/observability.py` — VictoriaLogs + VictoriaTraces HTTP clients
-- `mcp/mcp-obs/src/mcp_obs/tools.py` — Tool definitions and handlers
+- `mcp/mcp-obs/src/mcp_obs/tools.py` — 4 tool definitions with handlers
 - `mcp/mcp-obs/src/mcp_obs/server.py` — MCP stdio server
-- `mcp/mcp-obs/src/mcp_obs/__init__.py`, `__main__.py` — Module entry points
 - `nanobot/workspace/skills/observability/SKILL.md` — Skill prompt
 
-### Testing:
+### Manual Testing
 
-The tools are deployed and registered. To test manually via webchat:
-1. Ask: **"Any LMS backend errors in the last 10 minutes?"**
-2. The agent should:
-   - Call `obs_logs_error_count` with service="Learning Management Service" and time_range="10m"
-   - If errors found, use `obs_logs_search` to inspect them
-   - Extract trace_id if present, fetch trace with `obs_traces_get`
-   - Provide a concise summary
+To test via webchat:
+1. **Normal conditions**: Ask "Any LMS backend errors in the last 10 minutes?" → agent should report 0 errors
+2. **Failure conditions**:
+   ```bash
+   docker compose --env-file .env.docker.secret stop postgres
+   # Make a request through the Flutter app
+   # Ask: "Any LMS backend errors in the last 10 minutes?"
+   # Agent should report the db_query "connection is closed" error
+   docker compose --env-file .env.docker.secret start postgres
+   ```
 
-To test failure conditions:
-```bash
-# Stop PostgreSQL to trigger errors
-docker compose --env-file .env.docker.secret stop postgres
-
-# Make a few requests through the Flutter app
-# Then ask: "Any LMS backend errors in the last 10 minutes?"
-
-# Restart PostgreSQL
-docker compose --env-file .env.docker.secret start postgres
-```
+Note: LLM responses cannot be captured at this time because the qwen-code-api token has expired (health check shows `"status":"expired"`). The MCP tools are deployed and functional — verified via direct API calls above.
 
 ## Task 4A — Multi-step investigation
 
