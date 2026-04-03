@@ -18,6 +18,8 @@ Environment variables read:
 - NANOBOT_ACCESS_KEY -> channels.webchat.accessKey
 - NANOBOT_WEBSOCKET_RELAY_URL -> tools.mcpServers.webchat.env.NANOBOT_WEBSOCKET_RELAY_URL
 - NANOBOT_WEBSOCKET_TOKEN -> tools.mcpServers.webchat.env.NANOBOT_WEBSOCKET_TOKEN
+- NANOBOT_VICTORIALOGS_URL -> tools.mcpServers.obs.env.NANOBOT_VICTORIALOGS_URL
+- NANOBOT_VICTORIATRACES_URL -> tools.mcpServers.obs.env.NANOBOT_VICTORIATRACES_URL
 """
 
 import json
@@ -91,7 +93,16 @@ def resolve_config(config: dict) -> dict:
     websocket_token = os.environ.get('NANOBOT_WEBSOCKET_TOKEN')
     if websocket_token:
         config['tools']['mcpServers']['webchat']['env']['NANOBOT_WEBSOCKET_TOKEN'] = websocket_token
-    
+
+    # MCP observability server config
+    victorialogs_url = os.environ.get('NANOBOT_VICTORIALOGS_URL')
+    if victorialogs_url:
+        config['tools']['mcpServers']['obs']['env']['NANOBOT_VICTORIALOGS_URL'] = victorialogs_url
+
+    victoriatraces_url = os.environ.get('NANOBOT_VICTORIATRACES_URL')
+    if victoriatraces_url:
+        config['tools']['mcpServers']['obs']['env']['NANOBOT_VICTORIATRACES_URL'] = victoriatraces_url
+
     return config
 
 

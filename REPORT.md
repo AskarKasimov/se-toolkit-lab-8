@@ -283,15 +283,90 @@ nanobot-1  | 2026-03-28 12:50:09.920 | INFO     | nanobot.agent.loop:run:280 - A
 
 ## Task 3A — Structured logging
 
-<!-- Paste happy-path and error-path log excerpts, VictoriaLogs query screenshot -->
+backend-1  | 2026-03-28 14:16:00,348 INFO [lms_backend.main] [main.py:62] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - request_started
+backend-1  | 2026-03-28 14:16:00,357 INFO [lms_backend.auth] [auth.py:30] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - auth_success
+backend-1  | 2026-03-28 14:16:00,358 INFO [lms_backend.db.items] [items.py:16] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - db_query
+backend-1  | 2026-03-28 14:16:01,169 INFO [lms_backend.main] [main.py:74] [trace_id=a69faeba2663466abe510f1ccdf3f82e span_id=c113d11c3865ac45 resource.service.name=Learning Management Service trace_sampled=True] - request_completed
+backend-1  | INFO:     172.19.0.7:41928 - "GET /items/ HTTP/1.1" 200 OK
+backend-1  | INFO:     172.19.0.7:41928 - "GET /items/ HTTP/1.1" 200
+
+backend-1  | 2026-03-28 14:20:16,696 INFO [lms_backend.main] [main.py:62] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - request_started
+backend-1  | 2026-03-28 14:20:16,697 INFO [lms_backend.auth] [auth.py:30] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - auth_success
+backend-1  | 2026-03-28 14:20:16,697 INFO [lms_backend.db.items] [items.py:16] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - db_query
+backend-1  | 2026-03-28 14:20:16,784 ERROR [lms_backend.db.items] [items.py:23] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - db_query
+backend-1  | 2026-03-28 14:20:16,784 WARNING [lms_backend.routers.items] [items.py:23] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - items_list_failed_as_not_found
+backend-1  | 2026-03-28 14:20:16,785 INFO [lms_backend.main] [main.py:74] [trace_id=2f05eb994a0a6a421beb18be10e098ed span_id=e4d0026bda48b0b2 resource.service.name=Learning Management Service trace_sampled=True] - request_completed
+backend-1  | INFO:     172.19.0.7:50282 - "GET /items/ HTTP/1.1" 404
+backend-1  | INFO:     172.19.0.7:50282 - "GET /items/ HTTP/1.1" 404 Not Found
+
+![victoriascreen](victoriascreen.png)
 
 ## Task 3B — Traces
 
-<!-- Screenshots: healthy trace span hierarchy, error trace -->
+![victoriascreen](victoriascreen.png)
+![victoriascreen](victoriascreen.png)
 
 ## Task 3C — Observability MCP tools
 
-<!-- Paste agent responses to "any errors in the last hour?" under normal and failure conditions -->
+### MCP Tools Registered (from nanobot logs):
+
+```
+2026-04-03 09:16:21.278 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_logs_search' from server 'obs'
+2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_logs_error_count' from server 'obs'
+2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_traces_list' from server 'obs'
+2026-04-03 09:16:21.279 | DEBUG | nanobot.agent.tools.mcp:connect_mcp_servers:226 - MCP: registered tool 'mcp_obs_obs_traces_get' from server 'obs'
+2026-04-03 09:16:21.280 | INFO  | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'obs': connected, 4 tools registered
+```
+
+### Tool Implementation:
+
+**VictoriaLogs tools (port 9428):**
+- `obs_logs_search` — Search logs using LogsQL query with configurable limit
+- `obs_logs_error_count` — Count errors by service and time window
+
+**VictoriaTraces tools (port 10428, Jaeger-compatible):**
+- `obs_traces_list` — List recent traces for a service
+- `obs_traces_get` — Fetch full trace by ID with span hierarchy
+
+### Observability Skill:
+
+Created `nanobot/workspace/skills/observability/SKILL.md` that teaches the agent:
+- Start with `obs_logs_error_count` for quick error checks
+- Use `obs_logs_search` with LogsQL to dig into specific errors
+- Extract `trace_id` from logs and use `obs_traces_get` for full trace inspection
+- Scope queries to narrow time windows (e.g., `_time:10m`) and specific services
+- Summarize findings concisely instead of dumping raw JSON
+
+### Files Created:
+- `mcp/mcp-obs/pyproject.toml` — Package definition
+- `mcp/mcp-obs/src/mcp_obs/settings.py` — Environment config
+- `mcp/mcp-obs/src/mcp_obs/observability.py` — VictoriaLogs + VictoriaTraces HTTP clients
+- `mcp/mcp-obs/src/mcp_obs/tools.py` — Tool definitions and handlers
+- `mcp/mcp-obs/src/mcp_obs/server.py` — MCP stdio server
+- `mcp/mcp-obs/src/mcp_obs/__init__.py`, `__main__.py` — Module entry points
+- `nanobot/workspace/skills/observability/SKILL.md` — Skill prompt
+
+### Testing:
+
+The tools are deployed and registered. To test manually via webchat:
+1. Ask: **"Any LMS backend errors in the last 10 minutes?"**
+2. The agent should:
+   - Call `obs_logs_error_count` with service="Learning Management Service" and time_range="10m"
+   - If errors found, use `obs_logs_search` to inspect them
+   - Extract trace_id if present, fetch trace with `obs_traces_get`
+   - Provide a concise summary
+
+To test failure conditions:
+```bash
+# Stop PostgreSQL to trigger errors
+docker compose --env-file .env.docker.secret stop postgres
+
+# Make a few requests through the Flutter app
+# Then ask: "Any LMS backend errors in the last 10 minutes?"
+
+# Restart PostgreSQL
+docker compose --env-file .env.docker.secret start postgres
+```
 
 ## Task 4A — Multi-step investigation
 

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv *)",
+      "Bash(docker compose *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Bash(docker exec *)",
+      "Bash(python *)"
+    ]
+  },
+  "$version": 3
+}
