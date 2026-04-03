@@ -455,7 +455,47 @@ Created `nanobot/workspace/skills/observability/SKILL.md` teaching the agent:
 
 ## Task 4A — Multi-step investigation
 
-<!-- Paste the agent's response to "What went wrong?" showing chained log + trace investigation -->
+**Setup:** PostgreSQL stopped via `docker compose stop postgres`, then triggered `GET /items/` to create a fresh failure, then asked the agent **"What went wrong?"**
+
+**Agent response:**
+
+> I'll investigate what went wrong by checking recent errors, logs, and traces.
+>
+> Here's what I found:
+>
+> ## Error Summary
+>
+> **What failed:** Database connection in the Learning Management Service
+> **When:** 2026-04-03 10:22:29 UTC (~4 minutes ago)
+> **Request:** `GET /items/` (made via `curl`)
+>
+> ## Root Cause
+>
+> The LMS backend tried to connect to its PostgreSQL database (`db-lab-8`) at hostname **`postgres:5432`**, but **DNS resolution failed**:
+>
+> > `[Errno -2] Name or service not known`
+>
+> The hostname `postgres` could not be resolved — meaning the database container is either down, disconnected from the Docker network, or the service name has changed.
+>
+> ## Evidence
+>
+> | Source | Detail |
+> |--------|--------|
+> | **Log** | `db_query` event on table `item`, operation `select` — error: `[Errno -2] Name or service not known` |
+> | **Trace** `5e5fb160...` | The `connect` span took **~250 seconds** (4+ min) before failing with `gaierror` |
+> | **HTTP Response** | Returned **404** after the DB timeout |
+>
+> ## Likely Fix
+>
+> Check if the PostgreSQL container is running and reachable:
+> ```bash
+> docker ps | grep postgres
+> docker compose ps
+> ```
+>
+> The `postgres` hostname needs to resolve within the Docker network. If the DB container restarted with a different name or isn't on the same network, the LMS won't be able to connect.
+
+**Key observation:** The agent correctly identified the real PostgreSQL connection failure from logs and traces, and notably flagged that the HTTP response returned **404** despite the actual cause being a database connection error. This discrepancy points to a bug in the backend's error handling — the `GET /items/` route catches all exceptions and misreports them as `404 Items not found` instead of surfacing the true database error as a 500.
 
 ## Task 4B — Proactive health check
 

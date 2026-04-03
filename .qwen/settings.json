@@ -43,7 +43,18 @@
       "Bash(r2 *)",
       "Bash(asyncio.run)",
       "Bash(pyeof)",
-      "Bash(sed *)"
+      "Bash(sed *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(hostname *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(timeout *)",
+      "Bash(cat *)",
+      "Bash(date *)",
+      "Bash(cd *)",
+      "Bash(echo *)",
+      "Bash(tr *)"
     ]
   },
   "$version": 3
